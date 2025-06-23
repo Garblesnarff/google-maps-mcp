@@ -22,9 +22,9 @@ import { existsSync } from 'fs';
 // ====================================
 
 /**
- * Default download directory relative to the project root
+ * Default download directory - saves to Rob's Claude resources/maps folder
  */
-const DEFAULT_DOWNLOAD_DIR = 'downloads/maps';
+const DEFAULT_DOWNLOAD_DIR = '/Users/rob/Claude/resources/maps';
 
 /**
  * @interface DownloadResult

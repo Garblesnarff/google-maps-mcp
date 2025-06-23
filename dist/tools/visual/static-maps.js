@@ -64,6 +64,15 @@ export const STATIC_MAP_TOOL = {
                     },
                     required: ["location"]
                 }
+            },
+            download: {
+                type: "boolean",
+                description: "Whether to download the image locally (default: false)",
+                default: false
+            },
+            downloadDir: {
+                type: "string",
+                description: "Custom directory to save downloaded image (optional, defaults to 'downloads/maps')"
             }
         },
         required: ["center"]

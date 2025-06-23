@@ -9,12 +9,24 @@
  * @author Claude
  */
 /**
+ * @interface DownloadInfo
+ * @description Information about a downloaded image file.
+ */
+export interface DownloadInfo {
+    success: boolean;
+    filePath?: string;
+    fileName?: string;
+    fileSize?: number;
+    error?: string;
+}
+/**
  * @interface StreetViewMetadata
  * @description Interface for Street View image metadata.
  * @property {string} image_url - The URL of the Street View image.
  * @property {string} location - The location used for the Street View request.
  * @property {Object} parameters - The parameters used to generate the image.
  * @property {string} description - Description of the image type and usage.
+ * @property {DownloadInfo} [download] - Information about downloaded file (if downloaded).
  */
 export interface StreetViewMetadata {
     image_url: string;
@@ -26,6 +38,7 @@ export interface StreetViewMetadata {
         fov: number;
     };
     description: string;
+    download?: DownloadInfo;
 }
 /**
  * @interface StaticMapMetadata
@@ -34,6 +47,7 @@ export interface StreetViewMetadata {
  * @property {string} center - The center location of the map.
  * @property {Object} parameters - The parameters used to generate the map.
  * @property {string} description - Description of the map type and usage.
+ * @property {DownloadInfo} [download] - Information about downloaded file (if downloaded).
  */
 export interface StaticMapMetadata {
     image_url: string;
@@ -49,6 +63,7 @@ export interface StaticMapMetadata {
         }>;
     };
     description: string;
+    download?: DownloadInfo;
 }
 /**
  * @interface MarkerDefinition

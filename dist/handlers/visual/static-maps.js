@@ -3,31 +3,37 @@
  *
  * This file contains handler functions for Google Maps Static API.
  * Generates URLs for static map images with various map types and optional markers.
+ * Optionally downloads images locally.
  *
  * Dependencies:
  * - ../../config/environment.js (for GOOGLE_MAPS_API_KEY)
  * - ../../types/visual.js (for StaticMapMetadata, MarkerDefinition)
  * - ../../utils/error-handling.js (for createErrorResponse)
+ * - ../../utils/image-downloader.js (for downloadStaticMapImage)
  * - ../../types/common.js (for ToolResponse)
  *
  * @author Claude
  */
 import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
+import { downloadStaticMapImage } from "../../utils/image-downloader.js";
 // ====================================
 // Static Maps API Handlers
 // ====================================
 /**
  * Handles the static map image request, generating a URL for a static map image.
+ * Optionally downloads the image locally.
  *
  * @param {string} center - Center point of the map (address or coordinates).
  * @param {number} [zoom=13] - Zoom level (1-20).
  * @param {string} [size="640x640"] - Image size in pixels.
  * @param {string} [maptype="roadmap"] - Type of map (roadmap, satellite, terrain, hybrid).
  * @param {MarkerDefinition[]} [markers] - Optional markers to add to the map.
+ * @param {boolean} [download=false] - Whether to download the image locally.
+ * @param {string} [downloadDir] - Custom directory to save downloaded image.
  * @returns {Promise<ToolResponse>} A ToolResponse containing the static map image URL and metadata.
  */
-export async function handleStaticMap(center, zoom = 13, size = "640x640", maptype = "roadmap", markers) {
+export async function handleStaticMap(center, zoom = 13, size = "640x640", maptype = "roadmap", markers, download = false, downloadDir) {
     try {
         // Validate input parameters
         if (!center || center.trim() === "") {
@@ -82,7 +88,7 @@ export async function handleStaticMap(center, zoom = 13, size = "640x640", mapty
                 url.searchParams.append("markers", markerStr);
             }
         }
-        // Create metadata object
+        // Create base metadata object
         const metadata = {
             image_url: url.toString(),
             center: center,
@@ -94,6 +100,26 @@ export async function handleStaticMap(center, zoom = 13, size = "640x640", mapty
             },
             description: `${getMapTypeDescription(maptype)} map image URL centered on ${center} at zoom level ${zoom}. ${markers && markers.length > 0 ? `Includes ${markers.length} marker(s).` : ''} You can display this image or save it locally.`
         };
+        // Download image if requested
+        if (download) {
+            try {
+                const downloadResult = await downloadStaticMapImage(url.toString(), center, maptype, zoom, downloadDir);
+                metadata.download = downloadResult;
+                if (downloadResult.success) {
+                    metadata.description += ` Image downloaded to: ${downloadResult.filePath}`;
+                }
+                else {
+                    metadata.description += ` Note: Download failed - ${downloadResult.error}`;
+                }
+            }
+            catch (downloadError) {
+                metadata.download = {
+                    success: false,
+                    error: downloadError instanceof Error ? downloadError.message : String(downloadError)
+                };
+                metadata.description += ` Note: Download failed - ${metadata.download.error}`;
+            }
+        }
         return {
             content: [{
                     type: "text",

@@ -46,6 +46,15 @@ export const STREET_VIEW_TOOL = {
                 type: "number",
                 description: "Field of view in degrees (10-120, determines zoom level, lower=more zoomed)",
                 default: 90
+            },
+            download: {
+                type: "boolean",
+                description: "Whether to download the image locally (default: false)",
+                default: false
+            },
+            downloadDir: {
+                type: "string",
+                description: "Custom directory to save downloaded image (optional, defaults to 'downloads/maps')"
             }
         },
         required: ["location"]

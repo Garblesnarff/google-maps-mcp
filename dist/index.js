@@ -113,15 +113,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 response = await handleRoutes(origin, destination, travel_mode, routing_preference);
                 break;
             }
-            // Visual handlers
+            // Visual handlers with download support
             case "maps_street_view": {
-                const { location, size, heading, pitch, fov } = request.params.arguments;
-                response = await handleStreetView(location, size, heading, pitch, fov);
+                const { location, size, heading, pitch, fov, download, downloadDir } = request.params.arguments;
+                response = await handleStreetView(location, size, heading, pitch, fov, download, downloadDir);
                 break;
             }
             case "maps_static_map": {
-                const { center, zoom, size, maptype, markers } = request.params.arguments;
-                response = await handleStaticMap(center, zoom, size, maptype, markers);
+                const { center, zoom, size, maptype, markers, download, downloadDir } = request.params.arguments;
+                response = await handleStaticMap(center, zoom, size, maptype, markers, download, downloadDir);
                 break;
             }
             default:
