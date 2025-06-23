@@ -1,0 +1,38 @@
+{
+  "name": "google-maps-mcp-server-enhanced",
+  "version": "3.0.0",
+  "description": "Enhanced Google Maps MCP Server with visual capabilities (Street View, Static Maps), weather, air quality, solar, pollen, and routing for comprehensive camping and outdoor research",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "mcp", 
+    "google-maps", 
+    "street-view",
+    "static-maps",
+    "visual-maps",
+    "weather", 
+    "air-quality", 
+    "solar", 
+    "pollen", 
+    "camping", 
+    "outdoor-research", 
+    "bigfoot-research",
+    "environmental-data",
+    "trip-planning"
+  ],
+  "author": "Rob",
+  "license": "MIT"
+}
