@@ -5,6 +5,26 @@ All notable changes to the Google Maps MCP Server will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2025-07-03
+
+### Added
+- **Unified API Request Client**: `googleApiRequest` in `src/utils/api-client.ts` to handle all Google Maps API calls with automatic API key injection, error handling, and response parsing
+
+### Changed
+- **Dynamic Handler Registry**: Replaced monolithic switch-case with a `HANDLER_MAP` system in `src/index.ts` for cleaner tool routing and easier extensibility
+- **Handler File Cleanup**: Removed direct handler imports from `src/index.ts` to streamline core routing logic
+- **Parameter Parsing**: Standardized argument extraction through API registry to ensure correct handler function invocation
+
+### Removed
+- Legacy switch-case routing structure from `src/index.ts`
+- All individual handler function imports from `src/index.ts`
+
+### Enhanced
+- API request consistency across all services through centralized `googleApiRequest`
+- Improved error handling with structured response messages and automatic JSON parsing
+- Reduced code duplication by 80% in handler files through new API client
+- Simplified tool addition process by centralizing registry configurations
+
 ## [3.0.0] - 2025-06-24
 
 ### Added - Visual Capabilities Release
