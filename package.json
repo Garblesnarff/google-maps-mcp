@@ -1,7 +1,7 @@
 {
   "name": "google-maps-mcp-server-enhanced",
-  "version": "4.0.0",
-  "description": "Google Maps MCP server with 14 tools: geocoding, Places API (New), Routes API v2, elevation, weather, air quality, solar, pollen, street view, and static maps. Built for camping trip planning, outdoor research, and location analysis.",
+  "version": "4.1.0",
+  "description": "Google Maps MCP server with 19 tools: geocoding, Places API (New), Routes API v2, elevation, weather, air quality, solar, pollen, street view, static maps, and garden/climate planning (frost dates, growing degree days, soil conditions, day length, hardiness zone). Built for camping trip planning, outdoor research, gardening, and location analysis.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -25,9 +25,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^5.2.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^22.10.0",
     "typescript": "^5.7.2"
   },
@@ -44,7 +46,10 @@
     "camping",
     "outdoor-research",
     "environmental-data",
-    "trip-planning"
+    "trip-planning",
+    "garden",
+    "gardening",
+    "climate"
   ],
   "author": "Rob",
   "license": "MIT"

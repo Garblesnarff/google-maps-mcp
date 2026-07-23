@@ -1,8 +1,8 @@
 # Google Maps MCP Server Enhanced
 
-A comprehensive Model Context Protocol (MCP) server that provides 14 powerful tools for location services, routing, visual mapping, weather, and environmental data. Built for camping trip planning, outdoor research, location analysis, and any application requiring rich geographic data.
+A comprehensive Model Context Protocol (MCP) server that provides 19 powerful tools for location services, routing, visual mapping, weather, environmental data, and garden/climate planning. Built for camping trip planning, outdoor research, location analysis, gardening, and any application requiring rich geographic data.
 
-Version 4.0.0 is a ground-up rebuild on the modern MCP SDK — every tool is now reliably reachable with properly validated, named arguments. See [What's New in 4.0.0](#-whats-new-in-40) below.
+Version 4.0.0 was a ground-up rebuild on the modern MCP SDK — every tool is reliably reachable with properly validated, named arguments. Version 4.1.0 adds 5 garden/climate tools, response caching, retry with backoff, a second HTTP transport, and a REST API layer. See [What's New in 4.1.0](#-whats-new-in-41) below.
 
 ## 🌟 Features
 
@@ -30,6 +30,15 @@ Version 4.0.0 is a ground-up rebuild on the modern MCP SDK — every tool is now
 
 All images are returned inline to the MCP client (base64) — no more digging through a hardcoded download folder. Set `GOOGLE_MAPS_IMAGE_DIR` if you'd also like copies saved to disk.
 
+### 🌱 **Garden & Climate Planning — free, no Google key needed (5 tools)**
+- **Frost Dates**: Estimated last-spring / first-fall frost dates and frost-free season length, hemisphere-aware
+- **Growing Degree Days**: Historical and year-to-date GDD for estimating crop development timing, plus a reference table of common crop GDD requirements
+- **Soil Conditions**: Current and forecast soil temperature (0/6/18cm depth) and soil moisture, with planting-threshold guidance
+- **Day Length**: Sunrise/sunset, daylight and sunshine hours, and the day-over-day daylight trend
+- **Garden Climate Summary**: One-call composite — approximate USDA hardiness zone, frost dates, average annual GDD, and current soil temperature/day length
+
+These run on the free Open-Meteo historical archive (ERA5 reanalysis) and forecast APIs — **no API key required**. All derived values (frost dates, GDD, hardiness zone) are **approximations computed from ERA5 reanalysis grid data**, not ground station observations or the official USDA hardiness zone raster (which uses 1991-2020 PRISM climatology); treat them as general planning guidance, not precision agriculture.
+
 ## 🎯 Perfect For
 
 - **🏕️ Camping & Outdoor Planning**: Weather, terrain, and campsite research
@@ -37,6 +46,15 @@ All images are returned inline to the MCP client (base64) — no more digging th
 - **🚗 Travel Applications**: Route planning with real-time traffic awareness
 - **📊 Data Analysis**: Geographic data collection and visualization
 - **🏢 Business Applications**: Location intelligence and market analysis
+
+## ✨ What's New in 4.1
+
+- **5 new garden/climate tools**: `maps_frost_dates`, `maps_growing_degree_days`, `maps_soil_conditions`, `maps_day_length`, and the composite `maps_garden_climate` — free, no Google key required, built on Open-Meteo's historical archive and forecast APIs.
+- **Response caching**: successful upstream responses are cached in-memory with per-API TTLs (see [Environment Variables](#-environment-variables)) to cut latency and quota usage on repeated calls. Disable with `MAPS_MCP_NO_CACHE=1`.
+- **Retry with backoff**: transient failures (HTTP 429, 5xx, network errors) are retried up to twice with exponential backoff + jitter, honoring `Retry-After` when present. Other 4xx errors fail fast, unretried.
+- **Debug logging**: set `MAPS_MCP_DEBUG=1` to log one line per outbound request to stderr (method, sanitized URL, status, timing, cache state, retry count).
+- **Dual transport**: the server now runs over stdio (default, for MCP clients like Claude Desktop) or streamable HTTP (`TRANSPORT=http`), for both MCP-over-HTTP and a plain REST API. See [HTTP Mode & REST API](#-http-mode--rest-api).
+- **REST API layer**: `/health`, `/api/tools`, and `POST /api/tools/:name` let non-MCP consumers call any tool with plain JSON, no JSON-RPC required. Optional bearer-token auth via `MAPS_MCP_AUTH_TOKEN`.
 
 ## ✨ What's New in 4.0
 
@@ -56,7 +74,7 @@ All images are returned inline to the MCP client (base64) — no more digging th
 - **Google Cloud Platform account** with billing enabled (for the Google-backed tools)
 - **Google Maps API key**
 
-Note: the weather, air quality, solar, and pollen tools run on the free [Open-Meteo](https://open-meteo.com/) API and need **no Google API key at all**.
+Note: the weather, air quality, solar, pollen, and garden/climate tools run on the free [Open-Meteo](https://open-meteo.com/) API and need **no Google API key at all**.
 
 ## ⚙️ Setup
 
@@ -77,7 +95,7 @@ Enable these APIs in the [Google Cloud Console](https://console.cloud.google.com
 - **Maps Static API** *(for static map images)*
 - **Street View Static API** *(for street view images)*
 
-No Google API is required for `maps_weather`, `maps_air_quality`, `maps_solar`, or `maps_pollen` — those call Open-Meteo directly.
+No Google API is required for `maps_weather`, `maps_air_quality`, `maps_solar`, `maps_pollen`, or the 5 garden/climate tools (`maps_frost_dates`, `maps_growing_degree_days`, `maps_soil_conditions`, `maps_day_length`, `maps_garden_climate`) — those call Open-Meteo directly.
 
 ### 3. Get an API Key
 1. In Google Cloud Console → APIs & Services → Credentials
@@ -119,6 +137,46 @@ Add to your `claude_desktop_config.json`:
 claude mcp add google-maps -e GOOGLE_MAPS_API_KEY=your-key -- node /absolute/path/to/google-maps-mcp/dist/index.js
 ```
 
+## 🌐 HTTP Mode & REST API
+
+By default the server speaks stdio, the standard transport for MCP clients like Claude Desktop and Claude Code. Set `TRANSPORT=http` to instead run it as an HTTP server exposing both a streamable-HTTP MCP endpoint and a thin REST layer — useful for non-MCP consumers (e.g. a garden-planner app backend) that would rather POST plain JSON than speak JSON-RPC.
+
+```bash
+TRANSPORT=http PORT=3000 node dist/index.js
+```
+
+Optionally set `MAPS_MCP_AUTH_TOKEN` to require a bearer token on every route except `/health`:
+
+```bash
+TRANSPORT=http PORT=3000 MAPS_MCP_AUTH_TOKEN=your-secret node dist/index.js
+```
+```bash
+curl -H "Authorization: Bearer your-secret" http://localhost:3000/api/tools
+```
+
+### Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Liveness check — `{ status: "ok", version, tools }`. Always open, even when auth is configured. |
+| `GET /api/tools` | List all registered tool names. |
+| `POST /api/tools/:name` | Call a tool directly with a JSON body of arguments → `{ ok: true, data }` on success, `{ ok: false, error }` on failure. |
+| `POST /mcp` | Stateless streamable-HTTP MCP transport (JSON-RPC) — one server + transport per request, no session persistence. |
+
+**Note:** the REST layer (`/api/tools/:name`) calls tool handlers directly and **bypasses the zod schema validation** that normally runs inside `registerTool` for the stdio/MCP transports. Handlers are still defensive about malformed input and fail gracefully with a 500 rather than crashing, but REST callers are responsible for sending well-formed arguments.
+
+## 🔧 Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `GOOGLE_MAPS_API_KEY` | API key for all Google-backed tools (geocoding, places, routes, elevation, static maps, street view). Not needed for weather/air quality/solar/pollen/garden tools. | none — Google-backed tools return errors if unset |
+| `TRANSPORT` | Set to `http` to run the streamable-HTTP + REST server instead of stdio. | `stdio` |
+| `PORT` | Port for HTTP mode. | `3000` |
+| `MAPS_MCP_AUTH_TOKEN` | If set, requires `Authorization: Bearer <token>` on all HTTP routes except `/health`. | unset — auth disabled |
+| `MAPS_MCP_NO_CACHE` | Set to `1` to disable response caching entirely (useful for tests/debugging). | unset — caching enabled |
+| `MAPS_MCP_DEBUG` | Set to any truthy value to log one line per outbound request to stderr (method, sanitized URL, status, timing, cache HIT/MISS, retry count). | unset — quiet |
+| `GOOGLE_MAPS_IMAGE_DIR` | If set, also saves generated static map / street view images to this directory on disk (in addition to returning them inline). | unset — inline only |
+
 ## 🛠️ Tool Reference
 
 ### 📍 **Core Location Services**
@@ -151,6 +209,17 @@ claude mcp add google-maps -e GOOGLE_MAPS_API_KEY=your-key -- node /absolute/pat
 | `maps_static_map` | Static map image, inline | `center`, `zoom`, `size` (≤1024×1024), `maptype`, `markers[]`, optional `save` |
 | `maps_street_view` | Street-level panorama, inline | `location`, `heading`, `pitch`, `fov`, optional `save` |
 
+### 🌱 **Garden & Climate Planning (Open-Meteo — no Google key needed)**
+| Tool | Purpose | Key Args |
+|------|---------|----------|
+| `maps_frost_dates` | Estimated last-spring / first-fall frost dates, frost-free season length | `latitude`, `longitude`, `years` (5–30), `frost_threshold_c` |
+| `maps_growing_degree_days` | Historical + year-to-date growing degree days for crop timing | `latitude`, `longitude`, `base_temp_c`, `upper_cap_c`, `years` (5–30) |
+| `maps_soil_conditions` | Current + forecast soil temperature/moisture, planting guidance | `latitude`, `longitude`, `forecast_days` (1–7) |
+| `maps_day_length` | Sunrise/sunset, daylight/sunshine hours, daylight trend | `latitude`, `longitude`, `days` (1–16) |
+| `maps_garden_climate` | One-call composite: hardiness zone, frost dates, GDD, soil, day length | `latitude`, `longitude` |
+
+**Note:** these tools are free and require no API key, but every derived value (frost dates, GDD, hardiness zone) is an **approximation from ERA5 reanalysis grid data**, not official station observations or the USDA hardiness zone map — use for general garden planning, not precision agriculture.
+
 ## 💬 Example Prompts
 
 > "Plan a camping trip to Glacier National Park: check the weather, find campgrounds nearby, get an elevation profile of the approach trail, and show me a terrain map of the area."
@@ -158,6 +227,8 @@ claude mcp add google-maps -e GOOGLE_MAPS_API_KEY=your-key -- node /absolute/pat
 > "Get me a 7-day forecast and current air quality for Yosemite Valley, then find the driving route from Sacramento avoiding tolls."
 
 > "Show me a satellite view of this campsite and check if there's street view imagery at the trailhead."
+
+> "What hardiness zone is my garden in, when's my average last frost, and is the soil warm enough to plant peppers?"
 
 ## 🎨 Visual Capabilities
 
@@ -193,10 +264,11 @@ claude mcp add google-maps -e GOOGLE_MAPS_API_KEY=your-key -- node /absolute/pat
 
 - **TypeScript** throughout, built with `tsc`
 - **`@modelcontextprotocol/sdk`** `McpServer` with `registerTool` and zod schemas for every tool
-- **Native `fetch`** — no HTTP client dependency
+- **Native `fetch`** — no HTTP client dependency, wrapped with an in-memory TTL cache and retry-with-backoff (see [Environment Variables](#-environment-variables))
+- **Dual transport**: stdio (default) or streamable HTTP + REST (`TRANSPORT=http`), sharing the same 19 tool handlers via a `name -> handler` registry
 - **Modular design**, organized by tool category
 - All tool responses truncated at 25,000 characters to keep context usage sane
-- `readOnlyHint` annotations on all 14 tools
+- `readOnlyHint` annotations on all 19 tools
 
 ## 🤝 Contributing
 

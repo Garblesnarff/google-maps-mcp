@@ -9,6 +9,12 @@
  * assert on headers (e.g. X-Goog-FieldMask) actually sent by the handlers.
  */
 
+// Disable http.ts response caching for the whole test suite: tests reuse
+// the same URLs across cases with different mocked responses, and a cache
+// hit would silently return a stale mocked value instead of exercising the
+// route just registered by the current test.
+process.env.MAPS_MCP_NO_CACHE = "1";
+
 export interface CapturedRequest {
   url: string;
   method: string;

@@ -3,8 +3,10 @@
 /**
  * index.ts - Google Maps MCP server entry point
  *
- * Registers all 14 tools on a modern McpServer (named, validated
- * arguments via zod) and connects over stdio.
+ * Registers all 19 tools on a modern McpServer (named, validated
+ * arguments via zod). Supports two transports:
+ *   - stdio (default)
+ *   - streamable HTTP + a thin REST layer, when TRANSPORT=http
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -16,11 +18,12 @@ import { registerPlacesTools } from "./tools/places.js";
 import { registerRoutingTools } from "./tools/routing.js";
 import { registerEnvironmentalTools } from "./tools/environmental.js";
 import { registerVisualTools } from "./tools/visual.js";
+import { registerGardenTools } from "./tools/garden.js";
 
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "google-maps-mcp-server",
-    version: "4.0.0",
+    version: "4.1.0",
   });
 
   registerGeocodingTools(server);
@@ -29,6 +32,7 @@ export function createServer(): McpServer {
   registerRoutingTools(server);
   registerEnvironmentalTools(server);
   registerVisualTools(server);
+  registerGardenTools(server);
 
   return server;
 }
@@ -41,10 +45,17 @@ async function main(): Promise<void> {
     );
   }
 
+  if (process.env.TRANSPORT === "http") {
+    const { runHttpServer } = await import("./http-server.js");
+    const port = parseInt(process.env.PORT || "3000", 10);
+    await runHttpServer(port);
+    return;
+  }
+
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Google Maps MCP server v4.0.0 running on stdio (14 tools)");
+  console.error("Google Maps MCP server v4.1.0 running on stdio (19 tools)");
 }
 
 // Only start the server when executed directly (not when imported by tests).

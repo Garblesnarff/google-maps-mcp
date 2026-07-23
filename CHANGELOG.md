@@ -5,6 +5,21 @@ All notable changes to the Google Maps MCP Server will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-07-23
+
+### Added
+- 5 garden/climate planning tools: `maps_frost_dates`, `maps_growing_degree_days`, `maps_soil_conditions`, `maps_day_length`, and the composite `maps_garden_climate` — all free, no Google API key required, built on the Open-Meteo historical archive (ERA5 reanalysis) and forecast APIs
+- Response caching in `src/utils/http.ts` / `src/utils/cache.ts`: an in-memory TTL + LRU cache with per-API TTL policy (e.g. 24h for the immutable Open-Meteo historical archive, 6h for Google geocoding, 5min-1h for places/routes). Disable with `MAPS_MCP_NO_CACHE=1`
+- Retry with exponential backoff + jitter on transient failures (HTTP 429, 5xx, network errors), honoring `Retry-After` when present; other 4xx errors fail fast, unretried
+- Debug logging via `MAPS_MCP_DEBUG` — one line per outbound request to stderr (method, sanitized URL, status, timing, cache HIT/MISS, retry count)
+- Dual transport: the server now supports streamable HTTP in addition to stdio, selected via `TRANSPORT=http` / `PORT`
+- A thin REST API layer (`GET /health`, `GET /api/tools`, `POST /api/tools/:name`) for non-MCP consumers that would rather POST plain JSON than speak JSON-RPC
+- Optional bearer-token auth for HTTP mode via `MAPS_MCP_AUTH_TOKEN`, applied to all HTTP routes except `/health`
+
+### Changed
+- Tool count: 14 → 19
+- `runHttpServer` now returns the underlying `http.Server` handle, so callers (and tests) can close it cleanly
+
 ## [4.0.0] - 2026-07-23
 
 ### Added
