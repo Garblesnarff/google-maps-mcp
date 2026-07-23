@@ -1,35 +1,48 @@
 {
   "name": "google-maps-mcp-server-enhanced",
-  "version": "3.0.0",
-  "description": "Enhanced Google Maps MCP Server with visual capabilities (Street View, Static Maps), weather, air quality, solar, pollen, and routing for comprehensive camping and outdoor research",
-  "main": "dist/index.js",
+  "version": "4.0.0",
+  "description": "Google Maps MCP server with 14 tools: geocoding, Places API (New), Routes API v2, elevation, weather, air quality, solar, pollen, street view, and static maps. Built for camping trip planning, outdoor research, and location analysis.",
   "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "google-maps-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js"
+    "dev": "tsc && node dist/index.js",
+    "test": "tsc && node --test dist/tests/*.js",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "node-fetch": "^3.3.2"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
   },
   "keywords": [
-    "mcp", 
-    "google-maps", 
+    "mcp",
+    "model-context-protocol",
+    "google-maps",
     "street-view",
     "static-maps",
-    "visual-maps",
-    "weather", 
-    "air-quality", 
-    "solar", 
-    "pollen", 
-    "camping", 
-    "outdoor-research", 
-    "bigfoot-research",
+    "weather",
+    "air-quality",
+    "solar",
+    "pollen",
+    "camping",
+    "outdoor-research",
     "environmental-data",
     "trip-planning"
   ],

@@ -1,88 +1,60 @@
 #!/usr/bin/env node
 
 /**
- * index.ts - Main server orchestration
+ * index.ts - Google Maps MCP server entry point
  *
- * This file serves as the entry point for the Google Maps MCP server.
- * It initializes the MCP server, registers all available tools, and
- * dispatches incoming tool call requests to their respective handlers.
- *
- * Dependencies:
- * - @modelcontextprotocol/sdk/server/index.js (for Server)
- * - @modelcontextprotocol/sdk/server/stdio.js (for StdioServerTransport)
- * - @modelcontextprotocol/sdk/types.js (for CallToolRequestSchema, ListToolsRequestSchema)
- * - ./registry/tool-registry.js (for ALL_TOOLS)
- * - All handler files (e.g., geocoding.ts, places.ts, etc.)
- * - ./utils/error-handling.js (for createErrorResponse)
- *
- * @author Cline
+ * Registers all 14 tools on a modern McpServer (named, validated
+ * arguments via zod) and connects over stdio.
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
-import { ALL_TOOLS } from "./registry/tool-registry.js";
-import { createErrorResponse } from "./utils/error-handling.js";
-import { HANDLER_MAP } from "./handlers/handler-registry.js";
+import { registerGeocodingTools } from "./tools/geocoding.js";
+import { registerElevationTools } from "./tools/elevation.js";
+import { registerPlacesTools } from "./tools/places.js";
+import { registerRoutingTools } from "./tools/routing.js";
+import { registerEnvironmentalTools } from "./tools/environmental.js";
+import { registerVisualTools } from "./tools/visual.js";
 
-// ====================================
-// Server Setup
-// ====================================
+export function createServer(): McpServer {
+  const server = new McpServer({
+    name: "google-maps-mcp-server",
+    version: "4.0.0",
+  });
 
-const server = new Server(
-  {
-    name: "mcp-server/google-maps-enhanced-visual",
-    version: "0.3.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  },
-);
+  registerGeocodingTools(server);
+  registerElevationTools(server);
+  registerPlacesTools(server);
+  registerRoutingTools(server);
+  registerEnvironmentalTools(server);
+  registerVisualTools(server);
 
-// Set up request handlers
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: ALL_TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  try {
-    // Find the handler function associated with the tool name
-    const handler = HANDLER_MAP[request.params.name];
-
-    if (!handler) {
-      return createErrorResponse(`Unknown tool: ${request.params.name}`);
-    }
-
-    try {
-      // Extract API arguments (which may be undefined in some cases)
-      const params = request.params.arguments || {};
-
-      // Ensure handlers receive properly structured arguments
-      const response = await handler(...Object.values(params as Record<string, string>) || []);
-      return response;
-    } catch (error) {
-      return createErrorResponse(`Error invoking handler: ${(error as Error).message}`);
-    }
-
-  } catch (error) {
-    return createErrorResponse(`Error handling tool call: ${error instanceof Error ? error.message : String(error)}`);
-  }
-});
-
-// ====================================
-// Server Initialization
-// ====================================
-
-async function runServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Google Maps Enhanced Visual MCP Server running on stdio");
+  return server;
 }
 
-runServer().catch((error) => {
-  console.error("Fatal error running server:", error);
-  process.exit(1);
-});
+async function main(): Promise<void> {
+  if (!process.env.GOOGLE_MAPS_API_KEY) {
+    console.error(
+      "WARNING: GOOGLE_MAPS_API_KEY is not set. Google-backed tools will return errors. " +
+        "(Open-Meteo tools — weather, air quality, solar, pollen — work without a key.)"
+    );
+  }
+
+  const server = createServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Google Maps MCP server v4.0.0 running on stdio (14 tools)");
+}
+
+// Only start the server when executed directly (not when imported by tests).
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  import.meta.url.endsWith(process.argv[1].split("/").pop() ?? "");
+
+if (isDirectRun) {
+  main().catch((error) => {
+    console.error("Fatal error running server:", error);
+    process.exit(1);
+  });
+}
