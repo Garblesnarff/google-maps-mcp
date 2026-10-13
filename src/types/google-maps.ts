@@ -40,59 +40,89 @@ export interface GeocodeResponse extends GoogleMapsResponse {
 }
 
 /**
- * @interface PlacesSearchResponse
- * @description Interface for Places Search API responses.
- * @extends GoogleMapsResponse
- * @property {Array<Object>} results - Array of place search results.
+ * @interface PlacesNewPlace
+ * @description Interface for a place object returned by the Places API (New)
+ * (https://places.googleapis.com/v1). Field presence depends on the requested
+ * X-Goog-FieldMask.
+ * @property {string} [id] - The place ID.
+ * @property {Object} [displayName] - The place name (localized).
+ * @property {string} [formattedAddress] - The human-readable address.
+ * @property {Object} [location] - The geographic coordinates.
+ * @property {number} [rating] - The aggregate rating (0.0 - 5.0).
+ * @property {string[]} [types] - The place types.
+ * @property {string} [nationalPhoneNumber] - The phone number in national format.
+ * @property {string} [websiteUri] - The website URI.
+ * @property {Array<Object>} [reviews] - Place reviews.
+ * @property {Object} [currentOpeningHours] - The current opening hours.
  */
-export interface PlacesSearchResponse extends GoogleMapsResponse {
-  results: Array<{
-    name: string;
-    place_id: string;
-    formatted_address: string;
-    geometry: {
-      location: {
-        lat: number;
-        lng: number;
-      }
-    };
+export interface PlacesNewPlace {
+  id?: string;
+  displayName?: {
+    text: string;
+    languageCode: string;
+  };
+  formattedAddress?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  rating?: number;
+  types?: string[];
+  nationalPhoneNumber?: string;
+  websiteUri?: string;
+  reviews?: Array<{
+    name?: string;
     rating?: number;
-    types: string[];
+    text?: {
+      text: string;
+      languageCode: string;
+    };
+    originalText?: {
+      text: string;
+      languageCode: string;
+    };
+    authorAttribution?: {
+      displayName: string;
+      uri?: string;
+      photoUri?: string;
+    };
+    relativePublishTimeDescription?: string;
+    publishTime?: string;
   }>;
+  currentOpeningHours?: {
+    openNow?: boolean;
+    weekdayDescriptions?: string[];
+    periods?: Array<{
+      open?: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+      close?: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+    }>;
+  };
+}
+
+/**
+ * @interface PlacesSearchResponse
+ * @description Interface for Places API (New) searchText responses
+ * (https://places.googleapis.com/v1/places:searchText).
+ * @property {Array<PlacesNewPlace>} [places] - Array of matching places.
+ */
+export interface PlacesSearchResponse {
+  places?: PlacesNewPlace[];
 }
 
 /**
  * @interface PlaceDetailsResponse
- * @description Interface for Place Details API responses.
- * @extends GoogleMapsResponse
- * @property {Object} result - Detailed information about a place.
+ * @description Interface for Places API (New) place details responses
+ * (https://places.googleapis.com/v1/places/{place_id}).
  */
-export interface PlaceDetailsResponse extends GoogleMapsResponse {
-  result: {
-    name: string;
-    place_id: string;
-    formatted_address: string;
-    formatted_phone_number?: string;
-    website?: string;
-    rating?: number;
-    reviews?: Array<{
-      author_name: string;
-      rating: number;
-      text: string;
-      time: number;
-    }>;
-    opening_hours?: {
-      weekday_text: string[];
-      open_now: boolean;
-    };
-    geometry: {
-      location: {
-        lat: number;
-        lng: number;
-      }
-    };
-  };
-}
+export interface PlaceDetailsResponse extends PlacesNewPlace {}
 
 /**
  * @interface DistanceMatrixResponse

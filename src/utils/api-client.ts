@@ -23,12 +23,16 @@ import { ToolResponse } from "../types/common.js";
  * Handles network errors and non-OK HTTP statuses.
  *
  * @param {string} url - The URL to fetch data from.
+ * @param {Record<string, string>} [headers] - Optional additional headers for the request (e.g. authentication headers).
  * @returns {Promise<T>} A promise that resolves with the parsed JSON data.
  * @throws {Error} If the network request fails or the response status is not OK.
  */
-export async function fetchJson<T>(url: string): Promise<T> {
+export async function fetchJson<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: "GET",
+      headers
+    });
     if (!response.ok) {
       const errorBody = await response.text();
       throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorBody}`);
