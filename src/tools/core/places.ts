@@ -21,7 +21,7 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
  */
 export const SEARCH_PLACES_TOOL: Tool = {
   name: "maps_search_places",
-  description: "Search for places using Google Places API",
+  description: "Search for places using the Google Places API (New)",
   inputSchema: {
     type: "object",
     properties: {
@@ -40,6 +40,10 @@ export const SEARCH_PLACES_TOOL: Tool = {
       radius: {
         type: "number",
         description: "Search radius in meters (max 50000)"
+      },
+      fields: {
+        type: "string",
+        description: "Optional comma-separated field mask for the Places API (New) response, e.g. 'places.displayName,places.formattedAddress'. Omit for the default useful set."
       }
     },
     required: ["query"]
@@ -52,13 +56,17 @@ export const SEARCH_PLACES_TOOL: Tool = {
  */
 export const PLACE_DETAILS_TOOL: Tool = {
   name: "maps_place_details",
-  description: "Get detailed information about a specific place",
+  description: "Get detailed information about a specific place using the Google Places API (New)",
   inputSchema: {
     type: "object",
     properties: {
       place_id: {
         type: "string",
         description: "The place ID to get details for"
+      },
+      fields: {
+        type: "string",
+        description: "Optional comma-separated field mask for the Places API (New) response, e.g. 'displayName,formattedAddress'. Omit for the default useful set."
       }
     },
     required: ["place_id"]
