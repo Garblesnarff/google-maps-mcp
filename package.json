@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js"
+    "dev": "tsc && node dist/index.js",
+    "start:http": "node dist/http.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -18,17 +19,17 @@
     "typescript": "^5.0.0"
   },
   "keywords": [
-    "mcp", 
-    "google-maps", 
+    "mcp",
+    "google-maps",
     "street-view",
     "static-maps",
     "visual-maps",
-    "weather", 
-    "air-quality", 
-    "solar", 
-    "pollen", 
-    "camping", 
-    "outdoor-research", 
+    "weather",
+    "air-quality",
+    "solar",
+    "pollen",
+    "camping",
+    "outdoor-research",
     "bigfoot-research",
     "environmental-data",
     "trip-planning"
