@@ -16,7 +16,13 @@ import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { PlacesSearchResponse, PlaceDetailsResponse } from "../../types/google-maps.js";
 import { postJson, fetchJson } from "../../utils/api-client.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
+import { LruCache, cacheKey, getOrFetch } from "../../utils/lru-cache.js";
 import { ToolResponse } from "../../types/common.js";
+
+// Place details are stable: cache up to 200 responses for 24h.
+// The requested field mask is part of the key (different masks, different payloads).
+const PLACE_DETAILS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const placeDetailsCache = new LruCache<string, PlaceDetailsResponse>(200, PLACE_DETAILS_CACHE_TTL_MS);
 
 // ====================================
 // Places API (New) Handlers
@@ -132,10 +138,15 @@ export async function handlePlaceDetails(
   const url = `${PLACES_DETAILS_URL}/${encodeURIComponent(place_id)}`;
 
   try {
-    const data = await fetchJson<PlaceDetailsResponse>(url, {
-      "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
-      "X-Goog-FieldMask": fields || DEFAULT_DETAILS_FIELD_MASK
-    });
+    const fieldMask = fields || DEFAULT_DETAILS_FIELD_MASK;
+    const data = await getOrFetch(
+      placeDetailsCache,
+      cacheKey(`${url}|fields=${fieldMask}`),
+      () => fetchJson<PlaceDetailsResponse>(url, {
+        "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+        "X-Goog-FieldMask": fieldMask
+      })
+    );
 
     return {
       content: [{

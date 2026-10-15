@@ -19,8 +19,14 @@ import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { StaticMapMetadata, MarkerDefinition } from "../../types/visual.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
 import { downloadStaticMapImage } from "../../utils/image-downloader.js";
-import { fetchImageAsBase64, redactApiKey } from "../../utils/image-fetch.js";
+import { fetchImageAsBase64, redactApiKey, FetchedImage } from "../../utils/image-fetch.js";
+import { LruCache, cacheKey, getOrFetch } from "../../utils/lru-cache.js";
 import { ToolResponse } from "../../types/common.js";
+
+// Static map images are deterministic per URL but large: keep at most
+// 10 (up to ~50MB worst case) for 12h.
+const STATIC_MAP_IMAGE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const staticMapImageCache = new LruCache<string, FetchedImage>(10, STATIC_MAP_IMAGE_CACHE_TTL_MS);
 
 // ====================================
 // Static Maps API Handlers
@@ -154,12 +160,14 @@ export async function handleStaticMap(
       }
     }
 
-    // Fetch the actual image bytes and return them as an MCP image block,
-    // alongside the metadata. Size and content-type limits are enforced
-    // inside fetchImageAsBase64.
+    // Fetch the actual image bytes (cached) and return them as an MCP image
+    // block, alongside the metadata. Size and content-type limits are
+    // enforced inside fetchImageAsBase64.
     let image;
     try {
-      image = await fetchImageAsBase64(url.toString());
+      image = await getOrFetch(staticMapImageCache, cacheKey(url.toString()), () =>
+        fetchImageAsBase64(url.toString())
+      );
     } catch (imageError) {
       return createErrorResponse(`Static map image download failed: ${imageError instanceof Error ? imageError.message : String(imageError)}`);
     }
