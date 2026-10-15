@@ -253,3 +253,106 @@ export interface RoutesResponse {
     }>;
   }>;
 }
+
+/**
+ * @interface AddressValidationResponse
+ * @description Response from the Address Validation API validateAddress.
+ */
+export interface AddressValidationResponse {
+  result?: {
+    verdict?: {
+      inputGranularity?: string;
+      validationGranularity?: string;
+      geocodeGranularity?: string;
+      addressComplete?: boolean;
+      possibleNextAction?: string;
+    };
+    address?: {
+      formattedAddress?: string;
+      addressComponents?: Array<{
+        componentName?: { text?: string };
+        componentType?: string;
+        confirmationLevel?: string;
+      }>;
+      unconfirmedComponentTypes?: string[];
+    };
+    geocode?: {
+      location?: { latitude?: number; longitude?: number };
+      placeId?: string;
+    };
+    metadata?: Record<string, unknown>;
+  };
+  responseId?: string;
+  error?: { message?: string };
+}
+
+/**
+ * @interface TimeZoneResponse
+ * @description Response from the Time Zone API.
+ */
+export interface TimeZoneResponse {
+  status: string;
+  timeZoneId?: string;
+  timeZoneName?: string;
+  dstOffset?: number;
+  rawOffset?: number;
+  error_message?: string;
+}
+
+/**
+ * @interface NearbySearchResponse
+ * @description Response from Places API (New) searchNearby.
+ */
+export interface NearbySearchResponse {
+  places?: Array<{
+    id?: string;
+    displayName?: { text?: string };
+    formattedAddress?: string;
+    location?: { latitude?: number; longitude?: number };
+    rating?: number;
+    types?: string[];
+  }>;
+}
+
+/**
+ * @interface AutocompleteResponse
+ * @description Response from Places API (New) autocomplete.
+ */
+export interface AutocompleteResponse {
+  suggestions?: Array<{
+    placePrediction?: {
+      place?: string;
+      placeId?: string;
+      text?: { text?: string };
+    };
+  }>;
+}
+
+/**
+ * @interface RoadsSnapResponse
+ * @description Response from the Roads API snapToRoads.
+ */
+export interface RoadsSnapResponse {
+  snappedPoints?: Array<{
+    location?: { latitude?: number; longitude?: number };
+    originalIndex?: number;
+    placeId?: string;
+  }>;
+  warningMessage?: string;
+}
+
+/**
+ * @interface SpeedLimitsResponse
+ * @description Response from the Roads API speedLimits.
+ */
+export interface SpeedLimitsResponse {
+  speedLimits?: Array<{
+    placeId?: string;
+    speedLimit?: number;
+  }>;
+  snappedPoints?: Array<{
+    location?: { latitude?: number; longitude?: number };
+    originalIndex?: number;
+    placeId?: string;
+  }>;
+}

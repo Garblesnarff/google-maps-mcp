@@ -15,6 +15,12 @@ import { handlePlaceSearch, handlePlaceDetails } from "./core/places.js";
 import { handleDistanceMatrix, handleDirections, handleRoutes } from "./core/routing.js";
 import { handleElevation } from "./core/elevation.js";
 import { handlePlanTrip } from "./core/trip-planner.js";
+import { handleValidateAddress } from "./core/address-validation.js";
+import { handleTimezone } from "./core/timezone.js";
+import { handleNearbySearch } from "./core/nearby.js";
+import { handleSearchAlongRoute } from "./core/search-along-route.js";
+import { handleSnapToRoads, handleSpeedLimits } from "./core/roads.js";
+import { handleAutocomplete } from "./core/autocomplete.js";
 import { handleWeather } from "./environmental/weather.js";
 import { handleAirQuality } from "./environmental/air-quality.js";
 import { handleSolar } from "./environmental/solar.js";
@@ -43,6 +49,14 @@ export const HANDLER_MAP: Record<string, HandlerFunction> = {
   "maps_elevation": handleElevation,
   // Composite tools
   "maps_plan_trip": handlePlanTrip,
+  // New platform tools
+  "maps_validate_address": handleValidateAddress,
+  "maps_timezone": handleTimezone,
+  "maps_search_nearby": handleNearbySearch,
+  "maps_search_along_route": handleSearchAlongRoute,
+  "maps_snap_to_roads": handleSnapToRoads,
+  "maps_speed_limits": handleSpeedLimits,
+  "maps_autocomplete": handleAutocomplete,
   // Environmental data tools
   "maps_weather": handleWeather,
   "maps_air_quality": handleAirQuality,
