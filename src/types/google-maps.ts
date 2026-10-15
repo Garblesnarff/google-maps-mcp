@@ -40,85 +40,119 @@ export interface GeocodeResponse extends GoogleMapsResponse {
 }
 
 /**
- * @interface PlacesSearchResponse
- * @description Interface for Places Search API responses.
- * @extends GoogleMapsResponse
- * @property {Array<Object>} results - Array of place search results.
+ * @interface PlacesNewPlace
+ * @description Interface for a place object returned by the Places API (New)
+ * (https://places.googleapis.com/v1). Field presence depends on the requested
+ * X-Goog-FieldMask.
+ * @property {string} [id] - The place ID.
+ * @property {Object} [displayName] - The place name (localized).
+ * @property {string} [formattedAddress] - The human-readable address.
+ * @property {Object} [location] - The geographic coordinates.
+ * @property {number} [rating] - The aggregate rating (0.0 - 5.0).
+ * @property {string[]} [types] - The place types.
+ * @property {string} [nationalPhoneNumber] - The phone number in national format.
+ * @property {string} [websiteUri] - The website URI.
+ * @property {Array<Object>} [reviews] - Place reviews.
+ * @property {Object} [currentOpeningHours] - The current opening hours.
  */
-export interface PlacesSearchResponse extends GoogleMapsResponse {
-  results: Array<{
-    name: string;
-    place_id: string;
-    formatted_address: string;
-    geometry: {
-      location: {
-        lat: number;
-        lng: number;
-      }
-    };
+export interface PlacesNewPlace {
+  id?: string;
+  displayName?: {
+    text: string;
+    languageCode: string;
+  };
+  formattedAddress?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  rating?: number;
+  types?: string[];
+  nationalPhoneNumber?: string;
+  websiteUri?: string;
+  reviews?: Array<{
+    name?: string;
     rating?: number;
-    types: string[];
-  }>;
-}
-
-/**
- * @interface PlaceDetailsResponse
- * @description Interface for Place Details API responses.
- * @extends GoogleMapsResponse
- * @property {Object} result - Detailed information about a place.
- */
-export interface PlaceDetailsResponse extends GoogleMapsResponse {
-  result: {
-    name: string;
-    place_id: string;
-    formatted_address: string;
-    formatted_phone_number?: string;
-    website?: string;
-    rating?: number;
-    reviews?: Array<{
-      author_name: string;
-      rating: number;
+    text?: {
       text: string;
-      time: number;
+      languageCode: string;
+    };
+    originalText?: {
+      text: string;
+      languageCode: string;
+    };
+    authorAttribution?: {
+      displayName: string;
+      uri?: string;
+      photoUri?: string;
+    };
+    relativePublishTimeDescription?: string;
+    publishTime?: string;
+  }>;
+  currentOpeningHours?: {
+    openNow?: boolean;
+    weekdayDescriptions?: string[];
+    periods?: Array<{
+      open?: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+      close?: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
     }>;
-    opening_hours?: {
-      weekday_text: string[];
-      open_now: boolean;
-    };
-    geometry: {
-      location: {
-        lat: number;
-        lng: number;
-      }
-    };
   };
 }
 
 /**
- * @interface DistanceMatrixResponse
- * @description Interface for Distance Matrix API responses.
- * @extends GoogleMapsResponse
- * @property {string[]} origin_addresses - Array of origin addresses.
- * @property {string[]} destination_addresses - Array of destination addresses.
- * @property {Array<Object>} rows - Array of distance matrix rows.
+ * @interface PlacesSearchResponse
+ * @description Interface for Places API (New) searchText responses
+ * (https://places.googleapis.com/v1/places:searchText).
+ * @property {Array<PlacesNewPlace>} [places] - Array of matching places.
  */
-export interface DistanceMatrixResponse extends GoogleMapsResponse {
-  origin_addresses: string[];
-  destination_addresses: string[];
-  rows: Array<{
-    elements: Array<{
-      status: string;
-      duration: {
-        text: string;
-        value: number;
-      };
-      distance: {
-        text: string;
-        value: number;
-      };
-    }>;
-  }>;
+export interface PlacesSearchResponse {
+  places?: PlacesNewPlace[];
 }
+
+/**
+ * @interface PlaceDetailsResponse
+ * @description Interface for Places API (New) place details responses
+ * (https://places.googleapis.com/v1/places/{place_id}).
+ */
+export interface PlaceDetailsResponse extends PlacesNewPlace {}
+
+/**
+ * @interface RouteMatrixElement
+ * @description Interface for a single element of a Routes API
+ * distanceMatrix/v2:computeRouteMatrix response. The response is a flat array of
+ * these elements, each addressed by its originIndex/destinationIndex pair, and
+ * does not echo back resolved addresses.
+ * @property {number} originIndex - Index of the origin in the request origins array.
+ * @property {number} destinationIndex - Index of the destination in the request destinations array.
+ * @property {string} status - Status of the route computation for this element (e.g. "OK").
+ * @property {string} [duration] - Travel duration as a string in seconds (e.g. "3600s").
+ * @property {number} [distanceMeters] - Travel distance in meters.
+ * @property {string} [condition] - Route condition for this element (e.g. "ROUTE_EXISTS").
+ */
+export interface RouteMatrixElement {
+  originIndex: number;
+  destinationIndex: number;
+  status: string;
+  duration?: string;
+  distanceMeters?: number;
+  condition?: string;
+}
+
+/**
+ * @interface DistanceMatrixResponse
+ * @description Interface for Routes API distanceMatrix/v2:computeRouteMatrix responses.
+ * The response is a flat array of {@link RouteMatrixElement} objects which must be
+ * grouped by originIndex (and ordered by destinationIndex) to be consumed as a matrix.
+ */
+export type DistanceMatrixResponse = RouteMatrixElement[];
 
 /**
  * @interface ElevationResponse
@@ -138,37 +172,44 @@ export interface ElevationResponse extends GoogleMapsResponse {
 }
 
 /**
- * @interface DirectionsResponse
- * @description Interface for Directions API responses.
- * @extends GoogleMapsResponse
- * @property {Array<Object>} routes - Array of route results.
+ * @interface DirectionsRoute
+ * @description Interface for a single route of a Routes API
+ * directions/v2:computeRoutes response. Field presence depends on the
+ * requested X-Goog-FieldMask.
+ * @property {string} [description] - Route description, equivalent to the legacy route summary.
+ * @property {number} [distanceMeters] - Route distance in meters.
+ * @property {string} [duration] - Route duration as a string in seconds (e.g. "3600s").
+ * @property {Array<Object>} [legs] - Route legs (one leg when no intermediate waypoints are given).
+ * @property {Array<Object>} [legs[].steps] - Steps of the leg.
+ * @property {Object} [legs[].steps[].navigationInstruction] - Human-readable navigation instruction.
+ * @property {string} [legs[].steps[].navigationInstruction.maneuver] - Maneuver for the step.
+ * @property {string} [legs[].steps[].navigationInstruction.instructions] - Instruction text for the step.
+ * @property {number} [legs[].steps[].distanceMeters] - Step distance in meters.
+ * @property {string} [legs[].steps[].staticDuration] - Step duration as a string in seconds.
  */
-export interface DirectionsResponse extends GoogleMapsResponse {
-  routes: Array<{
-    summary: string;
-    legs: Array<{
-      distance: {
-        text: string;
-        value: number;
+export interface DirectionsRoute {
+  description?: string;
+  distanceMeters?: number;
+  duration?: string;
+  legs?: Array<{
+    steps?: Array<{
+      navigationInstruction?: {
+        maneuver?: string;
+        instructions?: string;
       };
-      duration: {
-        text: string;
-        value: number;
-      };
-      steps: Array<{
-        html_instructions: string;
-        distance: {
-          text: string;
-          value: number;
-        };
-        duration: {
-          text: string;
-          value: number;
-        };
-        travel_mode: string;
-      }>;
+      distanceMeters?: number;
+      staticDuration?: string;
     }>;
   }>;
+}
+
+/**
+ * @interface DirectionsResponse
+ * @description Interface for Routes API directions/v2:computeRoutes responses.
+ * @property {Array<DirectionsRoute>} routes - Array of computed routes.
+ */
+export interface DirectionsResponse {
+  routes: DirectionsRoute[];
 }
 
 /**
@@ -210,5 +251,108 @@ export interface RoutesResponse {
         };
       }>;
     }>;
+  }>;
+}
+
+/**
+ * @interface AddressValidationResponse
+ * @description Response from the Address Validation API validateAddress.
+ */
+export interface AddressValidationResponse {
+  result?: {
+    verdict?: {
+      inputGranularity?: string;
+      validationGranularity?: string;
+      geocodeGranularity?: string;
+      addressComplete?: boolean;
+      possibleNextAction?: string;
+    };
+    address?: {
+      formattedAddress?: string;
+      addressComponents?: Array<{
+        componentName?: { text?: string };
+        componentType?: string;
+        confirmationLevel?: string;
+      }>;
+      unconfirmedComponentTypes?: string[];
+    };
+    geocode?: {
+      location?: { latitude?: number; longitude?: number };
+      placeId?: string;
+    };
+    metadata?: Record<string, unknown>;
+  };
+  responseId?: string;
+  error?: { message?: string };
+}
+
+/**
+ * @interface TimeZoneResponse
+ * @description Response from the Time Zone API.
+ */
+export interface TimeZoneResponse {
+  status: string;
+  timeZoneId?: string;
+  timeZoneName?: string;
+  dstOffset?: number;
+  rawOffset?: number;
+  error_message?: string;
+}
+
+/**
+ * @interface NearbySearchResponse
+ * @description Response from Places API (New) searchNearby.
+ */
+export interface NearbySearchResponse {
+  places?: Array<{
+    id?: string;
+    displayName?: { text?: string };
+    formattedAddress?: string;
+    location?: { latitude?: number; longitude?: number };
+    rating?: number;
+    types?: string[];
+  }>;
+}
+
+/**
+ * @interface AutocompleteResponse
+ * @description Response from Places API (New) autocomplete.
+ */
+export interface AutocompleteResponse {
+  suggestions?: Array<{
+    placePrediction?: {
+      place?: string;
+      placeId?: string;
+      text?: { text?: string };
+    };
+  }>;
+}
+
+/**
+ * @interface RoadsSnapResponse
+ * @description Response from the Roads API snapToRoads.
+ */
+export interface RoadsSnapResponse {
+  snappedPoints?: Array<{
+    location?: { latitude?: number; longitude?: number };
+    originalIndex?: number;
+    placeId?: string;
+  }>;
+  warningMessage?: string;
+}
+
+/**
+ * @interface SpeedLimitsResponse
+ * @description Response from the Roads API speedLimits.
+ */
+export interface SpeedLimitsResponse {
+  speedLimits?: Array<{
+    placeId?: string;
+    speedLimit?: number;
+  }>;
+  snappedPoints?: Array<{
+    location?: { latitude?: number; longitude?: number };
+    originalIndex?: number;
+    placeId?: string;
   }>;
 }

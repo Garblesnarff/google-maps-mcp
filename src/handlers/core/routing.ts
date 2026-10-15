@@ -6,7 +6,7 @@
  * Dependencies:
  * - ../../config/environment.js (for GOOGLE_MAPS_API_KEY)
  * - ../../types/google-maps.js (for DistanceMatrixResponse, DirectionsResponse, RoutesResponse)
- * - ../../utils/api-client.js (for fetchJson, postJson)
+ * - ../../utils/api-client.js (for postJson)
  * - ../../utils/error-handling.js (for createErrorResponse)
  *
  * @author Cline
@@ -14,7 +14,7 @@
 
 import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { DistanceMatrixResponse, DirectionsResponse, RoutesResponse } from "../../types/google-maps.js";
-import { fetchJson, postJson } from "../../utils/api-client.js";
+import { postJson } from "../../utils/api-client.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
 import { ToolResponse } from "../../types/common.js";
 
@@ -23,7 +23,8 @@ import { ToolResponse } from "../../types/common.js";
 // ====================================
 
 /**
- * Handles the distance matrix request.
+ * Handles the distance matrix request using the Routes API
+ * (distanceMatrix/v2:computeRouteMatrix).
  *
  * @param {string[]} origins - Array of origin addresses or coordinates.
  * @param {string[]} destinations - Array of destination addresses or coordinates.
@@ -35,32 +36,52 @@ export async function handleDistanceMatrix(
   destinations: string[],
   mode: "driving" | "walking" | "bicycling" | "transit" = "driving"
 ): Promise<ToolResponse> {
-  const url = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
-  url.searchParams.append("origins", origins.join("|"));
-  url.searchParams.append("destinations", destinations.join("|"));
-  url.searchParams.append("mode", mode);
-  url.searchParams.append("key", GOOGLE_MAPS_API_KEY);
+  const url = "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix";
+
+  const travelModes: Record<string, string> = {
+    driving: "DRIVE",
+    walking: "WALK",
+    bicycling: "BICYCLE",
+    transit: "TRANSIT"
+  };
+
+  const requestBody = {
+    origins: origins.map((origin) => ({ waypoint: { address: origin } })),
+    destinations: destinations.map((destination) => ({ waypoint: { address: destination } })),
+    travelMode: travelModes[mode] || "DRIVE"
+  };
 
   try {
-    const data = await fetchJson<DistanceMatrixResponse>(url.toString());
+    const elements = await postJson<DistanceMatrixResponse>(url, requestBody, {
+      "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+      "X-Goog-FieldMask": "originIndex,destinationIndex,duration,distanceMeters,status,condition"
+    });
 
-    if (data.status !== "OK") {
-      return createErrorResponse(`Distance matrix request failed: ${data.error_message || data.status}`);
-    }
+    const rows = origins.map((_, originIndex) => ({
+      elements: elements
+        .filter((element) => element.originIndex === originIndex)
+        .sort((a, b) => a.destinationIndex - b.destinationIndex)
+        .map((element) => ({
+          status: element.status === "OK" ? "OK" : element.status,
+          duration: element.duration
+            ? { text: element.duration, value: parseInt(element.duration, 10) }
+            : undefined,
+          distance: element.distanceMeters !== undefined
+            ? {
+                text: `${(element.distanceMeters / 1609.34).toFixed(1)} mi`,
+                value: element.distanceMeters
+              }
+            : undefined
+        }))
+    }));
 
     return {
       content: [{
         type: "text",
         text: JSON.stringify({
-          origin_addresses: data.origin_addresses,
-          destination_addresses: data.destination_addresses,
-          results: data.rows.map((row) => ({
-            elements: row.elements.map((element) => ({
-              status: element.status,
-              duration: element.duration,
-              distance: element.distance
-            }))
-          }))
+          origin_addresses: origins,
+          destination_addresses: destinations,
+          results: rows
         }, null, 2)
       }],
       isError: false
@@ -71,7 +92,8 @@ export async function handleDistanceMatrix(
 }
 
 /**
- * Handles the directions request.
+ * Handles the directions request using the Routes API
+ * (directions/v2:computeRoutes).
  *
  * @param {string} origin - Starting point address or coordinates.
  * @param {string} destination - Ending point address or coordinates.
@@ -83,17 +105,41 @@ export async function handleDirections(
   destination: string,
   mode: "driving" | "walking" | "bicycling" | "transit" = "driving"
 ): Promise<ToolResponse> {
-  const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
-  url.searchParams.append("origin", origin);
-  url.searchParams.append("destination", destination);
-  url.searchParams.append("mode", mode);
-  url.searchParams.append("key", GOOGLE_MAPS_API_KEY);
+  const url = "https://routes.googleapis.com/directions/v2:computeRoutes";
+
+  const travelModes: Record<string, string> = {
+    driving: "DRIVE",
+    walking: "WALK",
+    bicycling: "BICYCLE",
+    transit: "TRANSIT"
+  };
+
+  const toDistance = (distanceMeters?: number) =>
+    distanceMeters !== undefined
+      ? { text: `${(distanceMeters / 1609.34).toFixed(1)} mi`, value: distanceMeters }
+      : undefined;
+
+  const toDuration = (duration?: string) =>
+    duration !== undefined
+      ? { text: duration, value: parseInt(duration, 10) }
+      : undefined;
+
+  const requestBody = {
+    origin: { address: origin },
+    destination: { address: destination },
+    travelMode: travelModes[mode] || "DRIVE",
+    languageCode: "en-US",
+    units: "IMPERIAL"
+  };
 
   try {
-    const data = await fetchJson<DirectionsResponse>(url.toString());
+    const data = await postJson<DirectionsResponse>(url, requestBody, {
+      "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+      "X-Goog-FieldMask": "routes.description,routes.distanceMeters,routes.duration,routes.legs.steps.navigationInstruction,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration"
+    });
 
-    if (data.status !== "OK") {
-      return createErrorResponse(`Directions request failed: ${data.error_message || data.status}`);
+    if (!data.routes || data.routes.length === 0) {
+      return createErrorResponse("No routes found.");
     }
 
     return {
@@ -101,14 +147,14 @@ export async function handleDirections(
         type: "text",
         text: JSON.stringify({
           routes: data.routes.map((route) => ({
-            summary: route.summary,
-            distance: route.legs[0].distance,
-            duration: route.legs[0].duration,
-            steps: route.legs[0].steps.map((step) => ({
-              instructions: step.html_instructions,
-              distance: step.distance,
-              duration: step.duration,
-              travel_mode: step.travel_mode
+            summary: route.description,
+            distance: toDistance(route.distanceMeters),
+            duration: toDuration(route.duration),
+            steps: (route.legs?.[0]?.steps ?? []).map((step) => ({
+              instructions: step.navigationInstruction?.instructions,
+              distance: toDistance(step.distanceMeters),
+              duration: toDuration(step.staticDuration),
+              travel_mode: mode
             }))
           }))
         }, null, 2)

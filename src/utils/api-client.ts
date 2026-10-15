@@ -10,7 +10,7 @@
  * @author Cline
  */
 
-import fetch from "node-fetch";
+import fetch, { RequestInit, Response } from "node-fetch";
 import { GOOGLE_MAPS_API_KEY } from "../config/environment.js";
 import { ToolResponse } from "../types/common.js";
 
@@ -18,58 +18,146 @@ import { ToolResponse } from "../types/common.js";
 // API Client Utilities
 // ====================================
 
+/** Default request timeout: 30 seconds. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
+/** Default retries on retryable failures (network errors, 5xx, 429). */
+export const DEFAULT_REQUEST_RETRIES = 1;
+
+/** Base delay between retries (doubles each attempt). */
+export const DEFAULT_RETRY_DELAY_MS = 500;
+
+export interface RequestOptions {
+  timeoutMs?: number;
+  retries?: number;
+  retryDelayMs?: number;
+}
+
 /**
- * Fetches data from a given URL and parses it as JSON.
- * Handles network errors and non-OK HTTP statuses.
- *
- * @param {string} url - The URL to fetch data from.
- * @returns {Promise<T>} A promise that resolves with the parsed JSON data.
- * @throws {Error} If the network request fails or the response status is not OK.
+ * Redacts an API key query parameter so URLs are safe to log.
  */
-export async function fetchJson<T>(url: string): Promise<T> {
+export function redactUrl(url: string): string {
+  return url.replace(/([?&]key=)[^&]*/i, "$1[REDACTED]");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+/**
+ * Fetches with a timeout. Never includes the URL in thrown errors —
+ * callers log the redacted form instead.
+ */
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorBody}`);
-    }
-    return await response.json() as T;
+    return await fetch(url, { ...init, signal: controller.signal });
   } catch (error) {
-    console.error(`Error fetching from ${url}:`, error);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
     throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 /**
+ * Core request loop shared by fetchJson/postJson: timeout, one retry pass
+ * with backoff on retryable failures, and key-safe logging.
+ */
+async function requestJson<T>(
+  method: string,
+  url: string,
+  headers: Record<string, string>,
+  body: string | undefined,
+  options: RequestOptions = {}
+): Promise<T> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  const retries = options.retries ?? DEFAULT_REQUEST_RETRIES;
+  const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+  const safeUrl = redactUrl(url);
+
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, { method, headers, body }, timeoutMs);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        const err = new Error(`HTTP error! Status: ${response.status}, Body: ${errorBody}`);
+        if (isRetryableStatus(response.status) && attempt < retries) {
+          lastError = err;
+          await sleep(retryDelayMs * 2 ** attempt);
+          continue;
+        }
+        throw err;
+      }
+      return (await response.json()) as T;
+    } catch (error) {
+      const retryableNetwork =
+        error instanceof Error &&
+        /timed out|ECONNRESET|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|socket hang up/i.test(error.message);
+      if (retryableNetwork && attempt < retries) {
+        lastError = error;
+        await sleep(retryDelayMs * 2 ** attempt);
+        continue;
+      }
+      console.error(`Error ${method === "POST" ? "posting to" : "fetching from"} ${safeUrl}:`, error);
+      throw error;
+    }
+  }
+  console.error(`Error ${method === "POST" ? "posting to" : "fetching from"} ${safeUrl}:`, lastError);
+  throw lastError;
+}
+
+/**
+ * Fetches data from a given URL and parses it as JSON.
+ * Requests time out, retry once on retryable failures, and never leak
+ * API keys into logs.
+ *
+ * @param {string} url - The URL to fetch data from.
+ * @param {Record<string, string>} [headers] - Optional additional headers for the request (e.g. authentication headers).
+ * @param {RequestOptions} [options] - Timeout/retry overrides.
+ * @returns {Promise<T>} A promise that resolves with the parsed JSON data.
+ * @throws {Error} If the network request fails or the response status is not OK.
+ */
+export async function fetchJson<T>(
+  url: string,
+  headers: Record<string, string> = {},
+  options: RequestOptions = {}
+): Promise<T> {
+  return requestJson<T>("GET", url, headers, undefined, options);
+}
+
+/**
  * Makes a POST request to a given URL with a JSON body and parses the response.
+ * Same timeout/retry/log-safety behavior as fetchJson.
  *
  * @param {string} url - The URL to post data to.
  * @param {Object} body - The JSON body to send with the request.
  * @param {Record<string, string>} headers - Additional headers for the request.
+ * @param {RequestOptions} [options] - Timeout/retry overrides.
  * @returns {Promise<T>} A promise that resolves with the parsed JSON data.
  * @throws {Error} If the network request fails or the response status is not OK.
  */
-export async function postJson<T>(url: string, body: object, headers: Record<string, string>): Promise<T> {
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorBody}`);
-    }
-
-    return await response.json() as T;
-  } catch (error) {
-    console.error(`Error posting to ${url}:`, error);
-    throw error;
-  }
+export async function postJson<T>(
+  url: string,
+  body: object,
+  headers: Record<string, string>,
+  options: RequestOptions = {}
+): Promise<T> {
+  return requestJson<T>(
+    "POST",
+    url,
+    { "Content-Type": "application/json", ...headers },
+    JSON.stringify(body),
+    options
+  );
 }
 
 /**

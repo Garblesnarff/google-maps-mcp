@@ -16,7 +16,12 @@ import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { ElevationResponse } from "../../types/google-maps.js";
 import { fetchJson } from "../../utils/api-client.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
+import { LruCache, cacheKey, getOrFetch } from "../../utils/lru-cache.js";
 import { ToolResponse } from "../../types/common.js";
+
+// Elevation data never changes: cache up to 200 responses for 24h.
+const ELEVATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const elevationCache = new LruCache<string, ElevationResponse>(200, ELEVATION_CACHE_TTL_MS);
 
 // ====================================
 // Elevation API Handlers
@@ -37,7 +42,9 @@ export async function handleElevation(locations: Array<{ latitude: number; longi
   url.searchParams.append("key", GOOGLE_MAPS_API_KEY);
 
   try {
-    const data = await fetchJson<ElevationResponse>(url.toString());
+    const data = await getOrFetch(elevationCache, cacheKey(url.toString()), () =>
+      fetchJson<ElevationResponse>(url.toString())
+    );
 
     if (data.status !== "OK") {
       return createErrorResponse(`Elevation request failed: ${data.error_message || data.status}`);

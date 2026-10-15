@@ -27,13 +27,14 @@ export interface GoogleMapsResponse {
 /**
  * @interface ToolResponse
  * @description Standardized response format for MCP tools.
- * @property {Array<Object>} content - Array of content blocks, typically text.
+ * @property {Array<Object>} content - Array of content blocks (text or image).
  * @property {boolean} isError - Indicates if the response signifies an error.
  */
+export type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
 export interface ToolResponse {
-  content: Array<{
-    type: "text";
-    text: string;
-  }>;
+  content: ContentBlock[];
   isError: boolean;
 }

@@ -16,7 +16,12 @@ import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { GeocodeResponse } from "../../types/google-maps.js";
 import { fetchJson } from "../../utils/api-client.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
+import { LruCache, cacheKey, getOrFetch } from "../../utils/lru-cache.js";
 import { ToolResponse } from "../../types/common.js";
+
+// Geocoding results are stable: cache up to 200 responses for 24h.
+const GEOCODE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const geocodeCache = new LruCache<string, GeocodeResponse>(200, GEOCODE_CACHE_TTL_MS);
 
 // ====================================
 // Geocoding API Handlers
@@ -34,7 +39,9 @@ export async function handleGeocode(address: string): Promise<ToolResponse> {
   url.searchParams.append("key", GOOGLE_MAPS_API_KEY);
 
   try {
-    const data = await fetchJson<GeocodeResponse>(url.toString());
+    const data = await getOrFetch(geocodeCache, cacheKey(url.toString()), () =>
+      fetchJson<GeocodeResponse>(url.toString())
+    );
 
     if (data.status !== "OK") {
       return createErrorResponse(`Geocoding failed: ${data.error_message || data.status}`);
@@ -69,7 +76,9 @@ export async function handleReverseGeocode(latitude: number, longitude: number):
   url.searchParams.append("key", GOOGLE_MAPS_API_KEY);
 
   try {
-    const data = await fetchJson<GeocodeResponse>(url.toString());
+    const data = await getOrFetch(geocodeCache, cacheKey(url.toString()), () =>
+      fetchJson<GeocodeResponse>(url.toString())
+    );
 
     if (data.status !== "OK") {
       return createErrorResponse(`Reverse geocoding failed: ${data.error_message || data.status}`);

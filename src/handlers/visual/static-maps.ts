@@ -19,15 +19,23 @@ import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { StaticMapMetadata, MarkerDefinition } from "../../types/visual.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
 import { downloadStaticMapImage } from "../../utils/image-downloader.js";
+import { fetchImageAsBase64, redactApiKey, FetchedImage } from "../../utils/image-fetch.js";
+import { LruCache, cacheKey, getOrFetch } from "../../utils/lru-cache.js";
 import { ToolResponse } from "../../types/common.js";
+
+// Static map images are deterministic per URL but large: keep at most
+// 10 (up to ~50MB worst case) for 12h.
+const STATIC_MAP_IMAGE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const staticMapImageCache = new LruCache<string, FetchedImage>(10, STATIC_MAP_IMAGE_CACHE_TTL_MS);
 
 // ====================================
 // Static Maps API Handlers
 // ====================================
 
 /**
- * Handles the static map image request, generating a URL for a static map image.
- * Optionally downloads the image locally.
+ * Handles the static map image request, returning the image itself as an
+ * MCP image content block plus metadata. The API key never leaves the
+ * server: the echoed image URL is redacted.
  *
  * @param {string} center - Center point of the map (address or coordinates).
  * @param {number} [zoom=13] - Zoom level (1-20).
@@ -112,9 +120,9 @@ export async function handleStaticMap(
       }
     }
 
-    // Create base metadata object
+    // Create base metadata object. The API key is redacted from the echoed URL.
     const metadata: StaticMapMetadata = {
-      image_url: url.toString(),
+      image_url: redactApiKey(url.toString()),
       center: center,
       parameters: {
         zoom,
@@ -152,11 +160,30 @@ export async function handleStaticMap(
       }
     }
 
+    // Fetch the actual image bytes (cached) and return them as an MCP image
+    // block, alongside the metadata. Size and content-type limits are
+    // enforced inside fetchImageAsBase64.
+    let image;
+    try {
+      image = await getOrFetch(staticMapImageCache, cacheKey(url.toString()), () =>
+        fetchImageAsBase64(url.toString())
+      );
+    } catch (imageError) {
+      return createErrorResponse(`Static map image download failed: ${imageError instanceof Error ? imageError.message : String(imageError)}`);
+    }
+
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(metadata, null, 2)
-      }],
+      content: [
+        {
+          type: "image",
+          data: image.data,
+          mimeType: image.mimeType
+        },
+        {
+          type: "text",
+          text: JSON.stringify(metadata, null, 2)
+        }
+      ],
       isError: false
     };
 

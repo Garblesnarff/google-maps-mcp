@@ -10,9 +10,22 @@
  * @author Cline
  */
 
-import { handleGeocode } from "./core/geocoding.js";
-import { handleRoutes } from "./core/routing.js";
+import { handleGeocode, handleReverseGeocode } from "./core/geocoding.js";
+import { handlePlaceSearch, handlePlaceDetails } from "./core/places.js";
+import { handleDistanceMatrix, handleDirections, handleRoutes } from "./core/routing.js";
+import { handleElevation } from "./core/elevation.js";
+import { handlePlanTrip } from "./core/trip-planner.js";
+import { handleValidateAddress } from "./core/address-validation.js";
+import { handleTimezone } from "./core/timezone.js";
+import { handleNearbySearch } from "./core/nearby.js";
+import { handleSearchAlongRoute } from "./core/search-along-route.js";
+import { handleSnapToRoads, handleSpeedLimits } from "./core/roads.js";
+import { handleAutocomplete } from "./core/autocomplete.js";
 import { handleWeather } from "./environmental/weather.js";
+import { handleAirQuality } from "./environmental/air-quality.js";
+import { handleSolar } from "./environmental/solar.js";
+import { handlePollen } from "./environmental/pollen.js";
+import { handleStreetView } from "./visual/street-view.js";
 import { handleStaticMap } from "./visual/static-maps.js";
 
 // ====================================
@@ -25,9 +38,31 @@ export type HandlerFunction = (...args: any[]) => Promise<any>;
  * Maps tool names to their respective handler functions
  */
 export const HANDLER_MAP: Record<string, HandlerFunction> = {
+  // Core Google Maps tools
   "maps_geocode": handleGeocode,
+  "maps_reverse_geocode": handleReverseGeocode,
+  "maps_search_places": handlePlaceSearch,
+  "maps_place_details": handlePlaceDetails,
+  "maps_distance_matrix": handleDistanceMatrix,
+  "maps_directions": handleDirections,
   "maps_routes": handleRoutes,
+  "maps_elevation": handleElevation,
+  // Composite tools
+  "maps_plan_trip": handlePlanTrip,
+  // New platform tools
+  "maps_validate_address": handleValidateAddress,
+  "maps_timezone": handleTimezone,
+  "maps_search_nearby": handleNearbySearch,
+  "maps_search_along_route": handleSearchAlongRoute,
+  "maps_snap_to_roads": handleSnapToRoads,
+  "maps_speed_limits": handleSpeedLimits,
+  "maps_autocomplete": handleAutocomplete,
+  // Environmental data tools
   "maps_weather": handleWeather,
-  "maps_static_map": handleStaticMap, 
-  // Continue adding all other tool-handler mappings here
+  "maps_air_quality": handleAirQuality,
+  "maps_solar": handleSolar,
+  "maps_pollen": handlePollen,
+  // Visual tools
+  "maps_street_view": handleStreetView,
+  "maps_static_map": handleStaticMap,
 };
