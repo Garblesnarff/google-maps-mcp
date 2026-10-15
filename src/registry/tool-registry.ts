@@ -18,6 +18,7 @@ import { GEOCODE_TOOL, REVERSE_GEOCODE_TOOL } from "../tools/core/geocoding.js";
 import { SEARCH_PLACES_TOOL, PLACE_DETAILS_TOOL } from "../tools/core/places.js";
 import { DISTANCE_MATRIX_TOOL, DIRECTIONS_TOOL, ROUTES_TOOL } from "../tools/core/routing.js";
 import { ELEVATION_TOOL } from "../tools/core/elevation.js";
+import { PLAN_TRIP_TOOL } from "../tools/core/trip-planner.js";
 
 // Environmental Data Tools
 import { WEATHER_TOOL } from "../tools/environmental/weather.js";
@@ -46,6 +47,8 @@ export const ALL_TOOLS: readonly Tool[] = [
   DISTANCE_MATRIX_TOOL,
   ELEVATION_TOOL,
   DIRECTIONS_TOOL,
+  // Composite tools
+  PLAN_TRIP_TOOL,
   // Environmental Data Tools
   WEATHER_TOOL,
   AIR_QUALITY_TOOL,

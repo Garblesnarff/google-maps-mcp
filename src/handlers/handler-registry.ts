@@ -14,6 +14,7 @@ import { handleGeocode, handleReverseGeocode } from "./core/geocoding.js";
 import { handlePlaceSearch, handlePlaceDetails } from "./core/places.js";
 import { handleDistanceMatrix, handleDirections, handleRoutes } from "./core/routing.js";
 import { handleElevation } from "./core/elevation.js";
+import { handlePlanTrip } from "./core/trip-planner.js";
 import { handleWeather } from "./environmental/weather.js";
 import { handleAirQuality } from "./environmental/air-quality.js";
 import { handleSolar } from "./environmental/solar.js";
@@ -40,6 +41,8 @@ export const HANDLER_MAP: Record<string, HandlerFunction> = {
   "maps_directions": handleDirections,
   "maps_routes": handleRoutes,
   "maps_elevation": handleElevation,
+  // Composite tools
+  "maps_plan_trip": handlePlanTrip,
   // Environmental data tools
   "maps_weather": handleWeather,
   "maps_air_quality": handleAirQuality,
