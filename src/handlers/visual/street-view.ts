@@ -19,6 +19,7 @@ import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { StreetViewMetadata } from "../../types/visual.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
 import { downloadStreetViewImage } from "../../utils/image-downloader.js";
+import { fetchImageAsBase64, redactApiKey } from "../../utils/image-fetch.js";
 import { ToolResponse } from "../../types/common.js";
 
 // ====================================
@@ -26,8 +27,9 @@ import { ToolResponse } from "../../types/common.js";
 // ====================================
 
 /**
- * Handles the Street View image request, generating a URL for a Street View image.
- * Optionally downloads the image locally.
+ * Handles the Street View image request, returning the image itself as an
+ * MCP image content block plus metadata. The API key never leaves the
+ * server: the echoed image URL is redacted.
  *
  * @param {string} location - The location for the Street View (address or coordinates).
  * @param {string} [size="640x640"] - Image size in pixels.
@@ -79,9 +81,9 @@ export async function handleStreetView(
     url.searchParams.append("fov", fov.toString());
     url.searchParams.append("key", GOOGLE_MAPS_API_KEY);
 
-    // Create base metadata object
+    // Create base metadata object. The API key is redacted from the echoed URL.
     const metadata: StreetViewMetadata = {
-      image_url: url.toString(),
+      image_url: redactApiKey(url.toString()),
       location: location,
       parameters: {
         size,
@@ -119,11 +121,28 @@ export async function handleStreetView(
       }
     }
 
+    // Fetch the actual image bytes and return them as an MCP image block,
+    // alongside the metadata. Size and content-type limits are enforced
+    // inside fetchImageAsBase64.
+    let image;
+    try {
+      image = await fetchImageAsBase64(url.toString());
+    } catch (imageError) {
+      return createErrorResponse(`Street View image download failed: ${imageError instanceof Error ? imageError.message : String(imageError)}`);
+    }
+
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(metadata, null, 2)
-      }],
+      content: [
+        {
+          type: "image",
+          data: image.data,
+          mimeType: image.mimeType
+        },
+        {
+          type: "text",
+          text: JSON.stringify(metadata, null, 2)
+        }
+      ],
       isError: false
     };
 

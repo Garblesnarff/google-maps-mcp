@@ -19,6 +19,7 @@ import { GOOGLE_MAPS_API_KEY } from "../../config/environment.js";
 import { StaticMapMetadata, MarkerDefinition } from "../../types/visual.js";
 import { createErrorResponse } from "../../utils/error-handling.js";
 import { downloadStaticMapImage } from "../../utils/image-downloader.js";
+import { fetchImageAsBase64, redactApiKey } from "../../utils/image-fetch.js";
 import { ToolResponse } from "../../types/common.js";
 
 // ====================================
@@ -26,8 +27,9 @@ import { ToolResponse } from "../../types/common.js";
 // ====================================
 
 /**
- * Handles the static map image request, generating a URL for a static map image.
- * Optionally downloads the image locally.
+ * Handles the static map image request, returning the image itself as an
+ * MCP image content block plus metadata. The API key never leaves the
+ * server: the echoed image URL is redacted.
  *
  * @param {string} center - Center point of the map (address or coordinates).
  * @param {number} [zoom=13] - Zoom level (1-20).
@@ -112,9 +114,9 @@ export async function handleStaticMap(
       }
     }
 
-    // Create base metadata object
+    // Create base metadata object. The API key is redacted from the echoed URL.
     const metadata: StaticMapMetadata = {
-      image_url: url.toString(),
+      image_url: redactApiKey(url.toString()),
       center: center,
       parameters: {
         zoom,
@@ -152,11 +154,28 @@ export async function handleStaticMap(
       }
     }
 
+    // Fetch the actual image bytes and return them as an MCP image block,
+    // alongside the metadata. Size and content-type limits are enforced
+    // inside fetchImageAsBase64.
+    let image;
+    try {
+      image = await fetchImageAsBase64(url.toString());
+    } catch (imageError) {
+      return createErrorResponse(`Static map image download failed: ${imageError instanceof Error ? imageError.message : String(imageError)}`);
+    }
+
     return {
-      content: [{
-        type: "text",
-        text: JSON.stringify(metadata, null, 2)
-      }],
+      content: [
+        {
+          type: "image",
+          data: image.data,
+          mimeType: image.mimeType
+        },
+        {
+          type: "text",
+          text: JSON.stringify(metadata, null, 2)
+        }
+      ],
       isError: false
     };
 
